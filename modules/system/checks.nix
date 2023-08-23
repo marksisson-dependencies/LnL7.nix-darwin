@@ -27,9 +27,9 @@ let
         echo "Create a symlink to /var/run with:" >&2
         if test -e /etc/synthetic.conf; then
             echo >&2
-            echo "$ echo 'run\tprivate/var/run' | sudo tee -a /etc/synthetic.conf" >&2
-            echo "$ /System/Library/Filesystems/apfs.fs/Contents/Resources/apfs.util -B" >&2
-            echo "$ /System/Library/Filesystems/apfs.fs/Contents/Resources/apfs.util -t" >&2
+            echo "$ printf 'run\tprivate/var/run\n' | sudo tee -a /etc/synthetic.conf" >&2
+            echo "$ sudo /System/Library/Filesystems/apfs.fs/Contents/Resources/apfs.util -B # For Catalina" >&2
+            echo "$ sudo /System/Library/Filesystems/apfs.fs/Contents/Resources/apfs.util -t # For Big Sur and later" >&2
             echo >&2
             echo "The current contents of /etc/synthetic.conf is:" >&2
             echo >&2
@@ -48,13 +48,9 @@ let
     if dscl . -list /Users | grep -q '^nixbld'; then
         echo "[1;31mwarning: Detected old style nixbld users[0m" >&2
         echo "These can cause migration problems when upgrading to certain macOS versions" >&2
-        echo "Running the installer again will remove and recreate the users in a way that avoids these problems" >&2
+        echo "You can enable the following option to migrate to new style nixbld users" >&2
         echo >&2
-        echo "$ darwin-install" >&2
-        echo >&2
-        echo "or enable to automatically manage the users" >&2
-        echo >&2
-        echo "    users.nix.configureBuildUsers = true;" >&2
+        echo "    nix.configureBuildUsers = true;" >&2
         echo >&2
     fi
   '';
@@ -125,7 +121,9 @@ let
   '';
 
   nixPath = ''
-    darwinConfig=$(NIX_PATH=${concatStringsSep ":" config.nix.nixPath} nix-instantiate --find-file darwin-config) || true
+    nixPath=${concatStringsSep ":" config.nix.nixPath}:$HOME/.nix-defexpr/channels
+
+    darwinConfig=$(NIX_PATH=$nixPath nix-instantiate --find-file darwin-config) || true
     if ! test -e "$darwinConfig"; then
         echo "[1;31merror: Changed <darwin-config> but target does not exist, aborting activation[0m" >&2
         echo "Create ''${darwinConfig:-~/.nixpkgs/darwin-configuration.nix} or set environment.darwinConfig:" >&2
@@ -139,7 +137,7 @@ let
         exit 2
     fi
 
-    darwinPath=$(NIX_PATH=${concatStringsSep ":" config.nix.nixPath} nix-instantiate --find-file darwin) || true
+    darwinPath=$(NIX_PATH=$nixPath nix-instantiate --find-file darwin) || true
     if ! test -e "$darwinPath"; then
         echo "[1;31merror: Changed <darwin> but target does not exist, aborting activation[0m" >&2
         echo "Add the darwin repo as a channel or set nix.nixPath:" >&2
@@ -153,7 +151,7 @@ let
         exit 2
     fi
 
-    nixpkgsPath=$(NIX_PATH=${concatStringsSep ":" config.nix.nixPath} nix-instantiate --find-file nixpkgs) || true
+    nixpkgsPath=$(NIX_PATH=$nixPath nix-instantiate --find-file nixpkgs) || true
     if ! test -e "$nixpkgsPath"; then
         echo "[1;31merror: Changed <nixpkgs> but target does not exist, aborting activation[0m" >&2
         echo "Add a nixpkgs channel or set nix.nixPath:" >&2
@@ -200,7 +198,19 @@ in
     system.checks.verifyNixPath = mkOption {
       type = types.bool;
       default = true;
-      description = "Whether to run the NIX_PATH validation checks.";
+      description = lib.mdDoc "Whether to run the NIX_PATH validation checks.";
+    };
+
+    system.checks.verifyNixChannels = mkOption {
+      type = types.bool;
+      default = true;
+      description = lib.mdDoc "Whether to run the nix-channels validation checks.";
+    };
+
+    system.checks.verifyBuildUsers = mkOption {
+      type = types.bool;
+      default = true;
+      description = lib.mdDoc "Whether to run the Nix build users validation checks.";
     };
 
     system.checks.text = mkOption {
@@ -216,11 +226,11 @@ in
       darwinChanges
       runLink
       oldBuildUsers
-      (mkIf config.nix.useDaemon buildUsers)
+      (mkIf (config.nix.useDaemon && cfg.verifyBuildUsers) buildUsers)
       (mkIf (!config.nix.useDaemon) singleUser)
       nixStore
       (mkIf (config.nix.gc.automatic && config.nix.gc.user == null) nixGarbageCollector)
-      nixChannels
+      (mkIf cfg.verifyNixChannels nixChannels)
       nixInstaller
       (mkIf cfg.verifyNixPath nixPath)
     ];

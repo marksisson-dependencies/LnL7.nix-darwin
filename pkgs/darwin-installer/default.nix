@@ -1,14 +1,7 @@
-{ stdenv, writeScript, nix, pkgs, nix-darwin }:
+{ stdenv, nix, pkgs, nix-darwin }:
 
 let
-  configuration = builtins.path {
-    name = "nix-darwin-installer-configuration";
-    path = ./.;
-    filter = name: _type: name != toString ./default.nix;
-  };
-
   nixPath = pkgs.lib.concatStringsSep ":" [
-    "darwin-config=${configuration}/configuration.nix"
     "darwin=${nix-darwin}"
     "nixpkgs=${pkgs.path}"
     "$HOME/.nix-defexpr/channels"
@@ -54,7 +47,7 @@ stdenv.mkDerivation {
     echo >&2 "Installing nix-darwin..."
     echo >&2
 
-    config=$(nix-instantiate --eval -E '<darwin-config>' 2> /dev/null || echo "$HOME/.nixpkgs/darwin-configuration.nix")
+    config="$HOME/.nixpkgs/darwin-configuration.nix"
     if ! test -f "$config"; then
         echo "copying example configuration.nix" >&2
         mkdir -p "$HOME/.nixpkgs"
@@ -70,7 +63,7 @@ stdenv.mkDerivation {
     # Skip when stdin is not a tty, eg.
     # $ yes | darwin-installer
     if test -t 0; then
-        read -p "Would you like to edit the default configuration.nix before starting? [y/n] " i
+        read -p "Would you like to edit the default configuration.nix before starting? [y/N] " i
         case "$i" in
             y|Y)
                 PATH=$_PATH ''${EDITOR:-nano} "$config"
@@ -82,7 +75,7 @@ stdenv.mkDerivation {
     darwinPath=$(NIX_PATH=$HOME/.nix-defexpr/channels nix-instantiate --eval -E '<darwin>' 2> /dev/null) || true
     if ! test -e "$darwinPath"; then
         if test -t 0; then
-            read -p "Would you like to manage <darwin> with nix-channel? [y/n] " i
+            read -p "Would you like to manage <darwin> with nix-channel? [y/N] " i
         fi
         case "$i" in
             y|Y)
@@ -93,10 +86,10 @@ stdenv.mkDerivation {
     fi
 
     export NIX_PATH=${nixPath}
-    system=$(nix-build '<darwin>' -I "user-darwin-config=$config" -A system --no-out-link --show-trace)
+    system=$(nix-build '<darwin>' -I "darwin-config=$config" -A system --no-out-link --show-trace)
 
     export PATH=$system/sw/bin:$PATH
-    darwin-rebuild "$action" -I "user-darwin-config=$config"
+    darwin-rebuild "$action" -I "darwin-config=$config"
 
     echo >&2
     echo >&2 "    Open '$config' to get started."
@@ -123,12 +116,6 @@ stdenv.mkDerivation {
         echo >&2 "checking /etc"
         readlink /etc/static
         test -e /etc/static
-        echo >&2 "checking /etc/static in bashrc"
-        cat /etc/bashrc
-        grep /etc/static/bashrc /etc/bashrc
-        echo >&2 "checking /etc/static in zshrc"
-        cat /etc/zshrc
-        grep /etc/static/zshrc /etc/zshrc
         echo >&2 "checking profile"
         cat /etc/profile
         grep -v nix-daemon.sh /etc/profile
@@ -145,13 +132,13 @@ stdenv.mkDerivation {
         env -i USER=john HOME=/Users/john bash -li -c 'echo $PATH'
         env -i USER=john HOME=/Users/john bash -li -c 'echo $PATH' | grep /Users/john/.nix-profile/bin:/run/current-system/sw/bin:/nix/var/nix/profiles/default/bin:/usr/local/bin:/usr/bin:/usr/sbin:/bin:/sbin
         env -i USER=john HOME=/Users/john bash -li -c 'echo $NIX_PATH'
-        env -i USER=john HOME=/Users/john bash -li -c 'echo $NIX_PATH' | grep darwin-config=/Users/john/.nixpkgs/darwin-configuration.nix:/nix/var/nix/profiles/per-user/root/channels:/Users/john/.nix-defexpr/channels
+        env -i USER=john HOME=/Users/john bash -li -c 'echo $NIX_PATH' | grep darwin-config=/Users/john/.nixpkgs/darwin-configuration.nix:/nix/var/nix/profiles/per-user/root/channels
 
         echo >&2 "checking zsh environment"
         env -i USER=john HOME=/Users/john zsh -l -c 'echo $PATH'
         env -i USER=john HOME=/Users/john zsh -l -c 'echo $PATH' | grep /Users/john/.nix-profile/bin:/run/current-system/sw/bin:/nix/var/nix/profiles/default/bin:/usr/local/bin:/usr/bin:/usr/sbin:/bin:/sbin
-        env -i USER=john HOME=/Users/john zsh -l -c 'echo $NIX_PATH' | grep darwin-config=/Users/john/.nixpkgs/darwin-configuration.nix:/nix/var/nix/profiles/per-user/root/channels:/Users/john/.nix-defexpr/channels
         env -i USER=john HOME=/Users/john zsh -l -c 'echo $NIX_PATH'
+        env -i USER=john HOME=/Users/john zsh -l -c 'echo $NIX_PATH' | grep darwin-config=/Users/john/.nixpkgs/darwin-configuration.nix:/nix/var/nix/profiles/per-user/root/channels
 
         echo >&2 ok
         exit

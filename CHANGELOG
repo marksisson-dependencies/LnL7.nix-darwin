@@ -1,3 +1,47 @@
+2022-08-24
+- Major changes to `homebrew` module
+  `homebrew.cleanup` was renamed to `homebrew.onActivation.cleanup`.
+
+  `homebrew.autoUpdate` was renamed to `homebrew.onActivation.autoUpdate`.
+
+  `homebrew.onActivation.upgrade` was added, and the default behavior of the
+  module was changed to not upgrade installed formulae and apps.
+
+  `homebrew.global.autoUpdate` was added.
+
+  `homebrew.global.noLock` was replaced with `hombrew.global.lockfiles`.
+
+  `homebrew.caskArgs` submodule was added for configuring arguments to be used
+  for all casks.
+
+  `homebrew.{taps,brews,casks}` were reimplemented as lists of submodules,
+  instead of lists of strings, with well documented options for all available
+  arguments for these Brewfile entry types, while preserving backwards
+  compatibility with the previous implementation.
+
+2022-08-14
+- nix module updated to bring it back in sync with it's NixOS counterpart
+  It should now be much more fiesable to share code for this module between
+  `nix-darwin` and NixOS configs.
+
+  `nix-darwin` now requires Nix >= 2.2.
+
+  `nix.package` can no longer be a path to a profile.
+
+  `nix.version` option has been removed. Use `nix.package.version` if you want
+  to reference the version Nix installed/used by your config.
+
+  Many options moved/renamed from `nix.*` to `nix.settings.*`. For example
+  `nix.binaryCaches` is now `nix.settings.substituters`.
+
+  You can use `nix.settings` to set any option in `nix.conf`.
+
+  `users.nix.*` options moved to `nix.*`.
+
+  `nix.daemonIONice` was renamed to `nix.daemonIOLowPriority`, and
+  `nix.daemonNiceLevel` was removed in favor a new option
+  `nix.nix.daemonProcessType`.
+
 2021-01-16
 - Added `homebrew` module, to manage formulas installed by Homebrew via `brew bundle`.
 

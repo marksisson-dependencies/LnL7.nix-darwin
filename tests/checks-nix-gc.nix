@@ -1,7 +1,7 @@
 { config, pkgs, ... }:
 
 let
-  nix = pkgs.runCommand "nix-0.0.0" {} "mkdir -p $out";
+  nix = pkgs.runCommand "nix-2.2" {} "mkdir -p $out";
 in
 
 {
@@ -14,6 +14,6 @@ in
 
     echo checking nix-gc service in /Library/LaunchDaemons >&2
     grep "<string>org.nixos.nix-gc</string>" ${config.out}/Library/LaunchDaemons/org.nixos.nix-gc.plist
-    ! grep "<key>UserName</key>" ${config.out}/Library/LaunchDaemons/org.nixos.nix-gc.plist
+    (! grep "<key>UserName</key>" ${config.out}/Library/LaunchDaemons/org.nixos.nix-gc.plist)
   '';
 }

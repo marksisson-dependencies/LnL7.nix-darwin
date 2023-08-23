@@ -1,4 +1,4 @@
-{ config, lib, pkgs, ... }:
+{ config, lib, inputs, pkgs, ... }:
 
 {
   # imports = [ ~/.config/nixpkgs/darwin/local-configuration.nix ];
@@ -34,8 +34,8 @@
   system.keyboard.remapCapsLockToControl = true;
 
   environment.systemPackages =
-    [ config.programs.vim.package
-      config.services.chunkwm.package
+    [
+      config.programs.vim.package
 
       pkgs.awscli
       pkgs.brotli
@@ -94,11 +94,11 @@
     log-lines = 128
   '';
 
-  nix.binaryCachePublicKeys = [ "cache.daiderd.com-1:R8KOWZ8lDaLojqD+v9dzXAqGn29gEzPTTbr/GIpCTrI=" ];
-  nix.trustedBinaryCaches = [ https://d3i7ezr9vxxsfy.cloudfront.net ];
+  nix.settings.trusted-public-keys = [ "cache.daiderd.com-1:R8KOWZ8lDaLojqD+v9dzXAqGn29gEzPTTbr/GIpCTrI=" ];
+  nix.settings.trusted-substituters = [ https://d3i7ezr9vxxsfy.cloudfront.net ];
 
-  nix.useSandbox = true;
-  nix.sandboxPaths = [ "/private/tmp" "/private/var/tmp" "/usr/bin/env" ];
+  nix.settings.sandbox = true;
+  nix.settings.extra-sandbox-paths = [ "/private/tmp" "/private/var/tmp" "/usr/bin/env" ];
 
   programs.nix-index.enable = true;
 
@@ -125,7 +125,7 @@
     set -g pane-border-style fg=black
     set -g status-bg black
     set -g status-fg white
-    set -g status-right '#[fg=white]#(id -un)@#(hostname)   #(cat /run/current-system/darwin-version)'
+    set -g status-right '#[fg=white]#(id -un)@#(hostname)   #(jq --raw-output '.darwinLabel' /run/current-system/darwin-version.json)'
   '';
 
   environment.etc."nix/user-sandbox.sb".text = ''
@@ -145,13 +145,18 @@
   # programs.vim.enable = true;
   # programs.vim.enableSensible = true;
   programs.vim.package = pkgs.neovim.override {
-      configure = {
-        packages.darwin.start = with pkgs.vimPlugins; [
-          vim-sensible vim-surround ReplaceWithRegister
-          polyglot fzfWrapper ale deoplete-nvim
-        ];
+    configure = {
+      packages.darwin.start = with pkgs.vimPlugins; [
+        vim-sensible
+        vim-surround
+        ReplaceWithRegister
+        polyglot
+        fzfWrapper
+        ale
+        deoplete-nvim
+      ];
 
-        customRC = ''
+      customRC = ''
         set completeopt=menuone
         set encoding=utf-8
         set hlsearch
@@ -303,7 +308,7 @@
 
   nixpkgs.overlays = [
     (self: super: {
-      darwin-zsh-completions = super.runCommandNoCC "darwin-zsh-completions-0.0.0"
+      darwin-zsh-completions = super.runCommand "darwin-zsh-completions-0.0.0"
         { preferLocalBuild = true; }
         ''
           mkdir -p $out/share/zsh/site-functions
@@ -344,29 +349,20 @@
   ];
 
   # Dotfiles.
-  # nixpkgs.overlays = mkAfter [
-  #   (import <dotfiles/nixpkgs/overlays/20-trivial-overrides.nix>)
-  #   (import <dotfiles/nixpkgs/overlays/50-trivial-packages.nix>)
-  # ];
-
-  services.chunkwm.package = pkgs.chunkwm;
-  services.chunkwm.hotload = false;
-  services.chunkwm.plugins.dir = "${lib.getOutput "out" pkgs.chunkwm}/lib/chunkwm/plugins";
-  services.chunkwm.plugins.list = [ "ffm" "tiling" ];
-  services.chunkwm.plugins."tiling".config = ''
-    chunkc set global_desktop_mode   bsp
-  '';
+  # nixpkgs.overlays = mkAfter inputs.dotfiles.darwinOverlays;
 
   # Dotfiles.
-  # services.chunkwm.extraConfig = builtins.readFile <dotfiles/chunkwm/chunkwmrc>;
-  # services.skhd.skhdConfig = builtins.readFile <dotfiles/skhd/skhdrc>;
+  # services.yabai.enable = true;
+  # services.yabai.package = pkgs.yabai;
+  # services.skhd.skhdConfig = builtins.readFile "${inputs.dotfiles}/skhd/skhdrc";
+  # services.yabai.extraConfig = builtins.readFile "${inputs.dotfiles}/yabai/yabairc";
 
   # Dotfiles.
   # $ cat ~/.gitconfig
   # [include]
   #     path = /etc/per-user/lnl/gitconfig
-  # environment.etc."per-user/lnl/gitconfig".text = builtins.readFile <dotfiles/git/gitconfig>;
+  # environment.etc."per-user/lnl/gitconfig".text = builtins.readFile "${inputs.dotfiles}/git/gitconfig";
 
-  users.nix.configureBuildUsers = true;
-  users.nix.nrBuildUsers = 32;
+  nix.configureBuildUsers = true;
+  nix.nrBuildUsers = 32;
 }

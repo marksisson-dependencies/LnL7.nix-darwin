@@ -19,6 +19,10 @@ let
 
   makeTest = test:
     let
+      testName =
+        builtins.replaceStrings [ ".nix" ] [ "" ]
+          (builtins.baseNameOf test);
+
       configuration =
         { config, lib, pkgs, ... }:
         with lib;
@@ -36,7 +40,7 @@ let
           };
 
           config = {
-            system.build.run-test = pkgs.runCommand "darwin-test"
+            system.build.run-test = pkgs.runCommand "darwin-test-${testName}"
               { allowSubstitutes = false; preferLocalBuild = true; }
               ''
                 #! ${pkgs.stdenv.shell}
@@ -89,7 +93,6 @@ let
     };
 
     manualHTML = buildFromConfig ({ ... }: { }) (config: config.system.build.manual.manualHTML);
-    manualEpub = buildFromConfig ({ ... }: { }) (config: config.system.build.manual.manualEpub);
     manpages = buildFromConfig ({ ... }: { }) (config: config.system.build.manual.manpages);
     options = buildFromConfig ({ ... }: { }) (config: config.system.build.manual.optionsJSON);
 
@@ -101,6 +104,8 @@ let
     tests.autossh = makeTest ./tests/autossh.nix;
     tests.checks-nix-gc = makeTest ./tests/checks-nix-gc.nix;
     tests.environment-path = makeTest ./tests/environment-path.nix;
+    tests.environment-terminfo = makeTest ./tests/environment-terminfo.nix;
+    tests.homebrew = makeTest ./tests/homebrew.nix;
     tests.launchd-daemons = makeTest ./tests/launchd-daemons.nix;
     tests.launchd-setenv = makeTest ./tests/launchd-setenv.nix;
     tests.networking-hostname = makeTest ./tests/networking-hostname.nix;
@@ -117,6 +122,7 @@ let
     tests.services-nix-daemon = makeTest ./tests/services-nix-daemon.nix;
     tests.sockets-nix-daemon = makeTest ./tests/sockets-nix-daemon.nix;
     tests.services-dnsmasq = makeTest ./tests/services-dnsmasq.nix;
+    tests.services-eternal-terminal = makeTest ./tests/services-eternal-terminal.nix;
     tests.services-nix-gc = makeTest ./tests/services-nix-gc.nix;
     tests.services-nextdns = makeTest ./tests/services-nextdns.nix;
     tests.services-ofborg = makeTest ./tests/services-ofborg.nix;

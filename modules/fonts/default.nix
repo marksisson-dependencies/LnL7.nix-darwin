@@ -7,12 +7,16 @@ let
 in
 
 {
+  imports = [
+    (mkRenamedOptionModule [ "fonts" "enableFontDir" ] [ "fonts" "fontDir" "enable" ])
+  ];
+
   options = {
-    fonts.enableFontDir = mkOption {
+    fonts.fontDir.enable = mkOption {
       default = false;
-      description = ''
+      description = lib.mdDoc ''
         Whether to enable font management and install configured fonts to
-        <filename>/Library/Fonts</filename>.
+        {file}`/Library/Fonts`.
 
         NOTE: removes any manually-added fonts.
       '';
@@ -20,26 +24,30 @@ in
 
     fonts.fonts = mkOption {
       type = types.listOf types.path;
-      default = [];
+      default = [ ];
       example = literalExpression "[ pkgs.dejavu_fonts ]";
-      description = "List of fonts to install.";
+      description = lib.mdDoc ''
+        List of fonts to install.
+
+        Fonts present in later entries override those with the same filenames
+        in previous ones.
+      '';
     };
   };
 
   config = {
 
-    system.build.fonts = pkgs.runCommandNoCC "fonts"
-      { paths = cfg.fonts; preferLocalBuild = true; }
+    system.build.fonts = pkgs.runCommand "fonts"
+      { preferLocalBuild = true; }
       ''
         mkdir -p $out/Library/Fonts
-        for path in $paths; do
-            find -L $path/share/fonts -type f -print0 | while IFS= read -rd "" f; do
-                ln -s "$f" $out/Library/Fonts
-            done
+        font_regexp='.*\.\(ttf\|ttc\|otf\)'
+        find -L ${toString cfg.fonts} -regex "$font_regexp" -type f -print0 | while IFS= read -rd "" f; do
+            ln -sf "$f" $out/Library/Fonts
         done
       '';
 
-    system.activationScripts.fonts.text = optionalString cfg.enableFontDir ''
+    system.activationScripts.fonts.text = optionalString cfg.fontDir.enable ''
       # Set up fonts.
       echo "configuring fonts..." >&2
       find -L "$systemConfig/Library/Fonts" -type f -print0 | while IFS= read -rd "" l; do
@@ -54,20 +62,22 @@ in
           fi
       done
 
-      fontrestore default -n 2>&1 | while read -r f; do
-          case $f in
-              /Library/Fonts/*)
-                  font=''${f##*/}
-                  if [ ! -e "$systemConfig/Library/Fonts/$font" ]; then
-                      echo "removing font $font..." >&2
-                      rm "/Library/Fonts/$font"
-                  fi
-                  ;;
-              /*)
-                  # ignoring unexpected fonts
-                  ;;
-          esac
-      done
+      if [[ "`sw_vers -productVersion`" < "13.0" ]]; then
+        fontrestore default -n 2>&1 | while read -r f; do
+            case $f in
+                /Library/Fonts/*)
+                    font=''${f##*/}
+                    if [ ! -e "$systemConfig/Library/Fonts/$font" ]; then
+                        echo "removing font $font..." >&2
+                        rm "/Library/Fonts/$font"
+                    fi
+                    ;;
+                /*)
+                    # ignoring unexpected fonts
+                    ;;
+            esac
+        done
+      fi
     '';
 
   };
